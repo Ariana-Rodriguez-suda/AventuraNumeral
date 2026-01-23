@@ -14,6 +14,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.res.imageResource
 
 data class Platform(
     val x: Float,
@@ -24,6 +26,8 @@ data class Platform(
 
 @Composable
 fun GameScreen() {
+
+    val playerSprite = ImageBitmap.imageResource(id = R.drawable.avatargirl1run)
 
     // ===== WORLD, LEVEL, PLAYER, etc =====
     val groundY = 700f
@@ -159,10 +163,9 @@ fun GameScreen() {
                 )
             }
 
-            drawRect(
-                color = Color.Red,
-                topLeft = Offset(playerX - cameraX, playerY),
-                size = Size(playerSize, playerSize)
+            drawImage(
+                image = playerSprite,
+                topLeft = Offset(playerX - cameraX, playerY)
             )
 
             drawCircle(
