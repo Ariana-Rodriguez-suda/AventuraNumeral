@@ -2,6 +2,7 @@ package com.example.aventuranumeral
 
 import android.view.MotionEvent
 import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +16,7 @@ import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.res.imageResource
 import kotlinx.coroutines.delay
 import kotlin.math.abs
+import android.graphics.RectF
 
 // ===== DATA =====
 
@@ -67,6 +69,10 @@ fun GameScreen() {
     val flagHeight = 200f
     val floorTopY = groundY + playerSize
     val flagY = floorTopY - flagHeight
+    val endX = 4000f
+    val endY = groundY + playerSize - 100f
+    val endWidth = 100f
+    val endHeight = 100f
 
     val platforms = listOf(
         Platform(0f, groundY + playerSize, holeX, 100f),
@@ -91,7 +97,7 @@ fun GameScreen() {
                 PushBlock(
                     x = 500f,
                     y = groundY,
-                    width = 180f,
+                    width = 170f,
                     height = playerSize),
 
                 PushBlock(
@@ -126,6 +132,14 @@ fun GameScreen() {
     val gravity = 2500f
     val jumpForce = -1100f
 
+    // ===== TIMER =====
+    var checkpointReached by remember { mutableStateOf(false) }
+    var checkpointTime by remember { mutableFloatStateOf(0f) }
+
+    var levelCompleted by remember { mutableStateOf(false) }
+    var levelTime by remember { mutableFloatStateOf(0f) } // your timer
+    var timerRunning by remember { mutableStateOf(true) }
+
     // ===== GAME LOOP =====
     LaunchedEffect(Unit) {
         var lastTime = System.nanoTime()
@@ -134,6 +148,11 @@ fun GameScreen() {
             val now = System.nanoTime()
             val delta = (now - lastTime) / 1_000_000_000f
             lastTime = now
+
+            // ===== UPDATE TIMER =====
+            if (!levelCompleted) {
+                levelTime += delta
+            }
 
             if (moveLeft) playerX -= moveSpeed * delta
             if (moveRight) playerX += moveSpeed * delta
@@ -290,15 +309,46 @@ fun GameScreen() {
                 playerX = 100f
                 playerY = groundY
                 velocityY = 0f
+                levelTime = 0f       // reset timer
+                timerRunning = true  // restart timer
+                flagOn = false       // reset checkpoint
             }
 
-            if (
+            // Checkpoint
+            if (!checkpointReached &&
                 playerX + playerSize > flagX &&
                 playerX < flagX + playerSize &&
                 playerY + playerSize > flagY &&
-                playerY < flagY + playerSize
+                playerY < flagY + flagHeight
             ) {
+                checkpointReached = true
+                checkpointTime = levelTime
                 flagOn = true
+                println("Checkpoint reached! Time: $checkpointTime")
+            }
+
+            // Endpoint
+            val playerRect = android.graphics.RectF(
+                playerX,
+                playerY,
+                playerX + playerSize,
+                playerY + playerSize
+            )
+            val endRect = android.graphics.RectF(
+                endX,
+                endY - endHeight, // top-left of end rect
+                endX + endWidth,
+                endY
+            )
+
+            if (!levelCompleted && RectF.intersects(playerRect, endRect)) {
+                levelCompleted = true
+                timerRunning = false
+                moveLeft = false
+                moveRight = false
+                pushing = false
+                velocityY = 0f
+                println("Level completed! Total time: $levelTime")
             }
 
             delay(16L)
@@ -383,6 +433,27 @@ fun GameScreen() {
             drawCircle(Color(0xAA000000), 70f, Offset(w * 0.35f, h * 0.8f))
             drawCircle(Color(0xAA000000), 70f, Offset(w * 0.6f, h * 0.8f))
             drawCircle(Color(0xAA000000), 70f, Offset(w * 0.85f, h * 0.8f))
+
+            drawRect(
+                Color.Magenta,
+                Offset(endX - cameraX, endY - endHeight),
+                Size(endWidth, endHeight)
+            )
+
+            drawContext.canvas.nativeCanvas.apply {
+                val paint = android.graphics.Paint().apply {
+                    color = android.graphics.Color.BLACK
+                    textSize = 50f
+                }
+
+                // main timer
+                drawText("Time: ${"%.2f".format(levelTime)} s", 50f, 100f, paint)
+
+                // checkpoint time (only if reached)
+                if (checkpointReached) {
+                    drawText("Checkpoint: ${"%.2f".format(checkpointTime)} s", 50f, 170f, paint)
+                }
+            }
         }
     }
 }
