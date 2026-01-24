@@ -1,7 +1,6 @@
 package com.example.aventuranumeral
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -12,7 +11,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun StartScreen(onStartGame: () -> Unit) {
+fun StartScreen(onStartGame: (String) -> Unit) {
+
+    var playerName by remember { mutableStateOf("") }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -28,11 +30,24 @@ fun StartScreen(onStartGame: () -> Unit) {
 
             Spacer(modifier = Modifier.height(40.dp))
 
+            OutlinedTextField(
+                value = playerName,
+                onValueChange = { playerName = it },
+                label = { Text("Player name") },
+                singleLine = true
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
             Button(
-                onClick = { onStartGame() },
+                onClick = {
+                    if (playerName.isNotBlank()) {
+                        onStartGame(playerName)
+                    }
+                },
                 modifier = Modifier.size(width = 200.dp, height = 60.dp)
             ) {
-                Text("Start Level", fontSize = 20.sp)
+            Text("Start Level", fontSize = 20.sp)
             }
         }
     }

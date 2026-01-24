@@ -17,6 +17,13 @@ import androidx.compose.ui.res.imageResource
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 import android.graphics.RectF
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.Column
 
 // ===== DATA =====
 
@@ -44,10 +51,48 @@ fun blocksOverlap(a: PushBlock, b: PushBlock): Boolean {
             a.y + a.height > b.y
 }
 
+suspend fun sendLevelData(
+    playerName: String,
+    levelTime: Float,
+    checkpointTime: Float?,
+    reachedCheckpoint: Boolean
+) {
+    withContext(Dispatchers.IO) {
+        try {
+            val url = java.net.URL("https://aventuranumeralbackend.onrender.com/save-level-time")
+            val conn = url.openConnection() as java.net.HttpURLConnection
+
+            conn.requestMethod = "POST"
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.doOutput = true
+
+            val json = """
+                {
+                  "player_name": "$playerName",
+                  "level_name": "level-1",
+                  "time_elapsed": $levelTime,
+                  "checkpoint_time": ${checkpointTime ?: "null"},
+                  "reached_checkpoint": $reachedCheckpoint
+                }
+            """.trimIndent()
+
+            conn.outputStream.use {
+                it.write(json.toByteArray())
+            }
+
+            conn.responseCode
+            conn.disconnect()
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+}
+
 // ===== GAME =====
 
 @Composable
-fun GameScreen() {
+fun GameScreen(playerName: String, onExitLevel: () -> Unit) {
 
     val playerSprite = ImageBitmap.imageResource(R.drawable.avatargirl1run)
     val offFlag = ImageBitmap.imageResource(R.drawable.offflag)
@@ -70,7 +115,7 @@ fun GameScreen() {
     val floorTopY = groundY + playerSize
     val flagY = floorTopY - flagHeight
     val endX = 4000f
-    val endY = groundY + playerSize - 100f
+    val endY = 800f
     val endWidth = 100f
     val endHeight = 100f
 
@@ -139,6 +184,8 @@ fun GameScreen() {
     var levelCompleted by remember { mutableStateOf(false) }
     var levelTime by remember { mutableFloatStateOf(0f) } // your timer
     var timerRunning by remember { mutableStateOf(true) }
+    var showEndDialog by remember { mutableStateOf(false) }
+    var dataSent by remember { mutableStateOf(false) }
 
     // ===== GAME LOOP =====
     LaunchedEffect(Unit) {
@@ -150,7 +197,7 @@ fun GameScreen() {
             lastTime = now
 
             // ===== UPDATE TIMER =====
-            if (!levelCompleted) {
+            if (timerRunning) {
                 levelTime += delta
             }
 
@@ -343,15 +390,27 @@ fun GameScreen() {
 
             if (!levelCompleted && RectF.intersects(playerRect, endRect)) {
                 levelCompleted = true
+                showEndDialog = true
                 timerRunning = false
                 moveLeft = false
                 moveRight = false
                 pushing = false
                 velocityY = 0f
-                println("Level completed! Total time: $levelTime")
             }
 
             delay(16L)
+        }
+    }
+
+    LaunchedEffect(levelCompleted) {
+        if (levelCompleted && !dataSent) {
+            dataSent = true
+            sendLevelData(
+                playerName = playerName,
+                levelTime = levelTime,
+                checkpointTime = if (checkpointReached) checkpointTime else null,
+                reachedCheckpoint = checkpointReached
+            )
         }
     }
 
@@ -455,5 +514,31 @@ fun GameScreen() {
                 }
             }
         }
+    }
+    if (showEndDialog) {
+        AlertDialog(
+            onDismissRequest = {},
+            confirmButton = {
+                Button(onClick = {
+                    showEndDialog = false
+                    onExitLevel()
+                }) {
+                    Text("Back to Start")
+                }
+            },
+            title = {
+                Text("🎉 Level Completed!")
+            },
+            text = {
+                Column {
+                    Text("Player: $playerName")
+                    Text("Time: ${"%.2f".format(levelTime)} s")
+
+                    if (checkpointReached) {
+                        Text("Checkpoint: ${"%.2f".format(checkpointTime)} s")
+                    }
+                }
+            }
+        )
     }
 }

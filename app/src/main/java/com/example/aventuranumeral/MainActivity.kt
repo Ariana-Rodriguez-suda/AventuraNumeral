@@ -12,11 +12,22 @@ class MainActivity : ComponentActivity() {
         setContent {
             AventuraNumeralTheme {
                 var gameStarted by remember { mutableStateOf(false) }
+                var playerName by remember { mutableStateOf("") }
 
                 if (gameStarted) {
-                    GameScreen()
+                    GameScreen(
+                        playerName = playerName,
+                        onExitLevel = {
+                            gameStarted = false
+                            playerName = ""
+                        }
+                    )
                 } else {
-                    StartScreen(onStartGame = { gameStarted = true })
+                    StartScreen(onStartGame = { name ->
+                            playerName = name
+                            gameStarted = true
+                        }
+                    )
                 }
             }
         }
