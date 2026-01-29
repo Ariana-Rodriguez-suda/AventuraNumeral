@@ -52,7 +52,8 @@ fun blocksOverlap(a: PushBlock, b: PushBlock): Boolean {
 }
 
 suspend fun sendLevelData(
-    playerName: String,
+    className: String,
+    studentName: String,
     levelTime: Float,
     checkpointTime: Float?,
     reachedCheckpoint: Boolean
@@ -68,7 +69,8 @@ suspend fun sendLevelData(
 
             val json = """
                 {
-                  "player_name": "$playerName",
+                  "student_name": "$studentName",
+                  "class_name": "$className",
                   "level_name": "level-1",
                   "time_elapsed": $levelTime,
                   "checkpoint_time": ${checkpointTime ?: "null"},
@@ -92,7 +94,7 @@ suspend fun sendLevelData(
 // ===== GAME =====
 
 @Composable
-fun GameScreen(playerName: String, onExitLevel: () -> Unit) {
+fun GameScreen(className: String, studentName: String, onExitLevel: () -> Unit) {
 
     val playerSprite = ImageBitmap.imageResource(R.drawable.avatargirl1run)
     val offFlag = ImageBitmap.imageResource(R.drawable.offflag)
@@ -182,7 +184,7 @@ fun GameScreen(playerName: String, onExitLevel: () -> Unit) {
     var checkpointTime by remember { mutableFloatStateOf(0f) }
 
     var levelCompleted by remember { mutableStateOf(false) }
-    var levelTime by remember { mutableFloatStateOf(0f) } // your timer
+    var levelTime by remember { mutableFloatStateOf(0f) }
     var timerRunning by remember { mutableStateOf(true) }
     var showEndDialog by remember { mutableStateOf(false) }
     var dataSent by remember { mutableStateOf(false) }
@@ -356,9 +358,9 @@ fun GameScreen(playerName: String, onExitLevel: () -> Unit) {
                 playerX = 100f
                 playerY = groundY
                 velocityY = 0f
-                levelTime = 0f       // reset timer
-                timerRunning = true  // restart timer
-                flagOn = false       // reset checkpoint
+                levelTime = 0f
+                timerRunning = true
+                flagOn = false
             }
 
             // Checkpoint
@@ -383,7 +385,7 @@ fun GameScreen(playerName: String, onExitLevel: () -> Unit) {
             )
             val endRect = android.graphics.RectF(
                 endX,
-                endY - endHeight, // top-left of end rect
+                endY - endHeight,
                 endX + endWidth,
                 endY
             )
@@ -406,7 +408,8 @@ fun GameScreen(playerName: String, onExitLevel: () -> Unit) {
         if (levelCompleted && !dataSent) {
             dataSent = true
             sendLevelData(
-                playerName = playerName,
+                className = className,
+                studentName = studentName,
                 levelTime = levelTime,
                 checkpointTime = if (checkpointReached) checkpointTime else null,
                 reachedCheckpoint = checkpointReached
@@ -505,10 +508,8 @@ fun GameScreen(playerName: String, onExitLevel: () -> Unit) {
                     textSize = 50f
                 }
 
-                // main timer
                 drawText("Time: ${"%.2f".format(levelTime)} s", 50f, 100f, paint)
 
-                // checkpoint time (only if reached)
                 if (checkpointReached) {
                     drawText("Checkpoint: ${"%.2f".format(checkpointTime)} s", 50f, 170f, paint)
                 }
@@ -531,7 +532,7 @@ fun GameScreen(playerName: String, onExitLevel: () -> Unit) {
             },
             text = {
                 Column {
-                    Text("Player: $playerName")
+                    Text("Player: $studentName")
                     Text("Time: ${"%.2f".format(levelTime)} s")
 
                     if (checkpointReached) {
