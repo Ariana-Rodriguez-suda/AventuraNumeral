@@ -94,9 +94,19 @@ suspend fun sendLevelData(
 // ===== GAME =====
 
 @Composable
-fun GameScreen(className: String, studentName: String, onExitLevel: () -> Unit) {
+fun GameScreen(className: String, studentName: String, avatarSprite: String, onExitLevel: () -> Unit) {
 
-    val playerSprite = ImageBitmap.imageResource(R.drawable.avatargirl1run)
+    val playerSpriteId = when (avatarSprite) {
+        "avatargirl1" -> R.drawable.avatargirl1run
+        "avatargirl2" -> R.drawable.avatargirl2run
+        "avatargirl3" -> R.drawable.avatargirl3run
+        "avatarboy1" -> R.drawable.avatarboy1run
+        "avatarboy2" -> R.drawable.avatarboy2run
+        "avatarboy3" -> R.drawable.avatarboy3run
+        else -> R.drawable.avatargirl1run
+    }
+    
+    val playerSprite = ImageBitmap.imageResource(playerSpriteId)
     val offFlag = ImageBitmap.imageResource(R.drawable.offflag)
     val onFlag = ImageBitmap.imageResource(R.drawable.onflag)
     var flagOn by remember { mutableStateOf(false) }

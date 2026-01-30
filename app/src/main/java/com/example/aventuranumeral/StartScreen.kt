@@ -70,7 +70,7 @@ suspend fun fetchStudents(classId: Int): List<StudentInfo> {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StartScreen(onStartGame: (String, String) -> Unit) {
+fun StartScreen(onStartGame: (String, String, Int, Boolean) -> Unit) {
 
     var classes by remember { mutableStateOf<List<ClassInfo>>(emptyList()) }
     var students by remember { mutableStateOf<List<StudentInfo>>(emptyList()) }
@@ -250,13 +250,15 @@ fun StartScreen(onStartGame: (String, String) -> Unit) {
                         .width(280.dp)
                         .height(80.dp)
                         .clickable(enabled = canStart) {
-                            val className = selectedClass?.name ?: return@clickable
+                            val classInfo = selectedClass ?: return@clickable
+                            val className = classInfo.name
                             val studentName = if (showCreateNew) {
                                 newStudentName.takeIf { it.isNotBlank() } ?: return@clickable
                             } else {
                                 selectedStudent?.name ?: return@clickable
                             }
-                            onStartGame(className, studentName)
+                            val isNew = showCreateNew
+                            onStartGame(className, studentName, classInfo.id, isNew)
                         },
                     alpha = if (canStart) 1f else 0.5f
                 )
