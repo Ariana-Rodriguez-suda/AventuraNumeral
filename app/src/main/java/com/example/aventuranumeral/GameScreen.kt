@@ -1,5 +1,6 @@
 package com.example.aventuranumeral
 
+import android.media.MediaPlayer
 import android.view.MotionEvent
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.nativeCanvas
@@ -13,7 +14,10 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.input.pointer.pointerInteropFilter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 import android.graphics.RectF
@@ -43,7 +47,19 @@ data class PushBlock(
     var inHole: Boolean = false,
     var settled: Boolean = false
 )
+data class Coin(
+    val x: Float,
+    val y: Float,
+    val size: Float = 50f,
+    var collected: Boolean = false
+)
 
+data class NPC(
+    val x: Float,
+    val y: Float,
+    val width: Float = 80f,
+    val height: Float = 120f
+)
 fun blocksOverlap(a: PushBlock, b: PushBlock): Boolean {
     return a.x < b.x + b.width &&
             a.x + a.width > b.x &&
@@ -96,6 +112,9 @@ suspend fun sendLevelData(
 @Composable
 fun GameScreen(className: String, studentName: String, avatarSprite: String, onExitLevel: () -> Unit) {
 
+    val context = LocalContext.current
+    val coinSound = remember { MediaPlayer.create(context, R.raw.coin) }
+
     val playerSpriteId = when (avatarSprite) {
         "avatargirl1" -> R.drawable.avatargirl1run
         "avatargirl2" -> R.drawable.avatargirl2run
@@ -109,6 +128,17 @@ fun GameScreen(className: String, studentName: String, avatarSprite: String, onE
     val playerSprite = ImageBitmap.imageResource(playerSpriteId)
     val offFlag = ImageBitmap.imageResource(R.drawable.offflag)
     val onFlag = ImageBitmap.imageResource(R.drawable.onflag)
+    val coinImg = ImageBitmap.imageResource(R.drawable.coin)
+    val npcImg = ImageBitmap.imageResource(R.drawable.npc)
+    val platformImg = ImageBitmap.imageResource(R.drawable.plataforma)
+    val groundBlockImg = ImageBitmap.imageResource(R.drawable.bloquecesped)
+    val puenteBrokenImg = ImageBitmap.imageResource(R.drawable.puentebroken)
+    val fullVidaImg = ImageBitmap.imageResource(R.drawable.fullvida)
+    val oneVidaImg = ImageBitmap.imageResource(R.drawable.onevida)
+    val twoVidaImg = ImageBitmap.imageResource(R.drawable.twovida)
+    val zeroVidaImg = ImageBitmap.imageResource(R.drawable.zerovida)
+    val coinScoreImg = ImageBitmap.imageResource(R.drawable.coinscore)
+    
     var flagOn by remember { mutableStateOf(false) }
 
     // ===== WORLD =====
@@ -130,6 +160,33 @@ fun GameScreen(className: String, studentName: String, avatarSprite: String, onE
     val endY = 800f
     val endWidth = 100f
     val endHeight = 100f
+
+    // ===== LIVES AND COINS =====
+    var playerLives by remember { mutableIntStateOf(3) }
+    var coinsCollected by remember { mutableIntStateOf(0) }
+
+    // ===== NPC at broken bridge (hole2X) =====
+    val npc = remember {
+        NPC(
+            x = hole2X - 200f,  // Position NPC before the second hole
+            y = groundY - 200f,  // Stand on ground
+            width = 150f,
+            height = 200f
+        )
+    }
+
+    // ===== COINS =====
+    var coins by remember {
+        mutableStateOf(
+            listOf(
+                Coin(600f, groundY - 350f),
+                Coin(1000f, groundY - 500f),
+                Coin(1400f, groundY - 350f),
+                Coin(1800f, groundY - 500f),
+                Coin(2200f, groundY - 350f),
+            )
+        )
+    }
 
     val platforms = listOf(
         Platform(0f, groundY + playerSize, holeX, 100f),
@@ -197,7 +254,9 @@ fun GameScreen(className: String, studentName: String, avatarSprite: String, onE
     var levelTime by remember { mutableFloatStateOf(0f) }
     var timerRunning by remember { mutableStateOf(true) }
     var showEndDialog by remember { mutableStateOf(false) }
+    var showGameOver by remember { mutableStateOf(false) }
     var dataSent by remember { mutableStateOf(false) }
+    var starsEarned by remember { mutableIntStateOf(0) }
 
     // ===== GAME LOOP =====
     LaunchedEffect(Unit) {
@@ -362,15 +421,78 @@ fun GameScreen(className: String, studentName: String, avatarSprite: String, onE
                 }
             }
 
+            // NPC collision - block player from passing
+            if (playerX + playerSize > npc.x &&
+                playerX < npc.x + npc.width &&
+                playerY + playerSize > npc.y &&
+                playerY < npc.y + npc.height
+            ) {
+                // Push player back
+                if (playerX < npc.x) {
+                    playerX = npc.x - playerSize
+                } else {
+                    playerX = npc.x + npc.width
+                }
+            }
+
+            // Block access to hole2X (broken bridge area)
+            if (playerX + playerSize > hole2X &&
+                playerX < hole2X + hole2Width &&
+                playerY + playerSize >= groundY
+            ) {
+                // Push player back from hole2X
+                if (playerX < hole2X + hole2Width / 2) {
+                    playerX = hole2X - playerSize
+                } else {
+                    playerX = hole2X + hole2Width
+                }
+            }
+
             cameraX = playerX - 200f
 
             if (playerY > 1500f) {
-                playerX = 100f
-                playerY = groundY
-                velocityY = 0f
-                levelTime = 0f
-                timerRunning = true
-                flagOn = false
+                // Lose a life when falling
+                playerLives -= 1
+                
+                if (playerLives <= 0) {
+                    // Game over
+                    showGameOver = true
+                    timerRunning = false
+                    moveLeft = false
+                    moveRight = false
+                    pushing = false
+                    velocityY = 0f
+                } else {
+                    // Respawn at start
+                    playerX = 100f
+                    playerY = groundY
+                    velocityY = 0f
+                    flagOn = false
+                }
+            }
+
+            // Coin collection
+            coins = coins.map { coin ->
+                if (!coin.collected &&
+                    playerX + playerSize > coin.x &&
+                    playerX < coin.x + coin.size &&
+                    playerY + playerSize > coin.y &&
+                    playerY < coin.y + coin.size
+                ) {
+                    coinsCollected += 1
+                    // Play coin sound
+                    try {
+                        if (coinSound.isPlaying) {
+                            coinSound.seekTo(0)
+                        }
+                        coinSound.start()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    coin.copy(collected = true)
+                } else {
+                    coin
+                }
             }
 
             // Checkpoint
@@ -408,6 +530,13 @@ fun GameScreen(className: String, studentName: String, avatarSprite: String, onE
                 moveRight = false
                 pushing = false
                 velocityY = 0f
+                
+                // Calculate stars based on time
+                starsEarned = when {
+                    levelTime < 15f -> 3  // Very fast: 3 stars
+                    levelTime < 30f -> 2  // Good: 2 stars
+                    else -> 1             // Completed: 1 star
+                }
             }
 
             delay(16L)
@@ -482,17 +611,59 @@ fun GameScreen(className: String, studentName: String, avatarSprite: String, onE
                 }
         ) {
 
-            platforms.forEach {
-                drawRect(Color(0xFF6FCF97), Offset(it.x - cameraX, it.y), Size(it.width, it.height))
+            // Draw platforms
+            platforms.forEach { platform ->
+                // Ground platforms (thick ones) use green color
+                if (platform.height > 50f) {
+                    drawRect(
+                        Color(0xFF6FCF97),
+                        Offset(platform.x - cameraX, platform.y),
+                        Size(platform.width, platform.height)
+                    )
+                } else {
+                    // Floating platforms use platform image
+                    drawImage(
+                        platformImg,
+                        dstOffset = IntOffset((platform.x - cameraX).toInt(), platform.y.toInt()),
+                        dstSize = IntSize(platform.width.toInt(), platform.height.toInt())
+                    )
+                }
             }
+
+            // Draw coins
+            coins.forEach { coin ->
+                if (!coin.collected) {
+                    drawImage(
+                        coinImg,
+                        dstOffset = IntOffset((coin.x - cameraX).toInt(), coin.y.toInt()),
+                        dstSize = IntSize(coin.size.toInt(), coin.size.toInt())
+                    )
+                }
+            }
+
+            // Draw NPC at broken bridge
+            drawImage(
+                npcImg,
+                dstOffset = IntOffset((npc.x - cameraX).toInt(), npc.y.toInt()),
+                dstSize = IntSize(npc.width.toInt(), npc.height.toInt())
+            )
+
+            // Draw broken bridge at hole2X
+            drawImage(
+                puenteBrokenImg,
+                dstOffset = IntOffset((hole2X - cameraX).toInt(), (groundY + 10f).toInt()),
+                dstSize = IntSize(hole2Width.toInt(), 80)
+            )
 
             drawImage(if (flagOn) onFlag else offFlag,
                 Offset(flagX - cameraX, flagY))
 
             blocks.forEach {
-                drawRect(Color(0xFF8D6E63),
-                    Offset(it.x - cameraX, it.y),
-                    Size(it.width, it.height))
+                drawImage(
+                    groundBlockImg,
+                    dstOffset = IntOffset((it.x - cameraX).toInt(), it.y.toInt()),
+                    dstSize = IntSize(it.width.toInt(), it.height.toInt())
+                )
             }
 
             drawImage(
@@ -512,42 +683,77 @@ fun GameScreen(className: String, studentName: String, avatarSprite: String, onE
                 Size(endWidth, endHeight)
             )
 
+            // Draw lives at top-left (use appropriate image based on lives)
+            val vidaImg = when (playerLives) {
+                3 -> fullVidaImg
+                2 -> twoVidaImg
+                1 -> oneVidaImg
+                else -> zeroVidaImg
+            }
+            drawImage(
+                vidaImg,
+                dstOffset = IntOffset(50, 50),
+                dstSize = IntSize(150, 50)
+            )
+
+            // Draw coins collected at top-right
+            drawImage(
+                coinScoreImg,
+                dstOffset = IntOffset((w - 250f).toInt(), 50),
+                dstSize = IntSize(50, 50)
+            )
+
             drawContext.canvas.nativeCanvas.apply {
                 val paint = android.graphics.Paint().apply {
                     color = android.graphics.Color.BLACK
                     textSize = 50f
+                    textAlign = android.graphics.Paint.Align.LEFT
                 }
 
-                drawText("Time: ${"%.2f".format(levelTime)} s", 50f, 100f, paint)
+                // Display coins count
+                paint.textAlign = android.graphics.Paint.Align.LEFT
+                drawText("x$coinsCollected", w - 180f, 90f, paint)
+
+                // Time display
+                drawText("Time: ${"%.2f".format(levelTime)} s", 50f, 150f, paint)
 
                 if (checkpointReached) {
-                    drawText("Checkpoint: ${"%.2f".format(checkpointTime)} s", 50f, 170f, paint)
+                    drawText("Checkpoint: ${"%.2f".format(checkpointTime)} s", 50f, 210f, paint)
                 }
             }
         }
     }
     if (showEndDialog) {
+        FinishScreen(
+            studentName = studentName,
+            levelTime = levelTime,
+            coinsCollected = coinsCollected,
+            starsEarned = starsEarned,
+            checkpointReached = checkpointReached,
+            checkpointTime = checkpointTime,
+            onBackToStart = onExitLevel
+        )
+    }
+    
+    if (showGameOver) {
         AlertDialog(
             onDismissRequest = {},
             confirmButton = {
                 Button(onClick = {
-                    showEndDialog = false
+                    showGameOver = false
                     onExitLevel()
                 }) {
-                    Text("Back to Start")
+                    Text("Volver al Inicio")
                 }
             },
             title = {
-                Text("🎉 Level Completed!")
+                Text("💀 Game Over")
             },
             text = {
                 Column {
-                    Text("Player: $studentName")
-                    Text("Time: ${"%.2f".format(levelTime)} s")
-
-                    if (checkpointReached) {
-                        Text("Checkpoint: ${"%.2f".format(checkpointTime)} s")
-                    }
+                    Text("Te quedaste sin vidas!")
+                    Text("Jugador: $studentName")
+                    Text("Monedas recolectadas: $coinsCollected")
                 }
             }
         )
