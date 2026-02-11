@@ -26,13 +26,14 @@ suspend fun getStudentAvatar(classId: Int, studentName: String): String {
             for (i in 0 until studentsArray.length()) {
                 val student = studentsArray.getJSONObject(i)
                 if (student.getString("student_name") == studentName) {
-                    return@withContext student.optString("avatar", "avatargirl1")
+                    val avatar = if (student.isNull("avatar")) "" else student.getString("avatar")
+                    return@withContext avatar
                 }
             }
-            "avatargirl1"
+            ""  // Return empty string if student not found
         } catch (e: Exception) {
             e.printStackTrace()
-            "avatargirl1"
+            ""  // Return empty string on error
         }
     }
 }
@@ -46,7 +47,6 @@ class MainActivity : ComponentActivity() {
                 var className by remember { mutableStateOf("") }
                 var studentName by remember { mutableStateOf("") }
                 var classId by remember { mutableIntStateOf(0) }
-                var isNewStudent by remember { mutableStateOf(false) }
                 var selectedAvatar by remember { mutableStateOf("avatargirl1") }
                 var isLoadingAvatar by remember { mutableStateOf(false) }
                 val coroutineScope = rememberCoroutineScope()
@@ -54,19 +54,23 @@ class MainActivity : ComponentActivity() {
                 when (currentScreen) {
                     "start" -> {
                         StartScreen(
-                            onStartGame = { cls, name, clsId, isNew ->
+                            onStartGame = { cls, name, clsId ->
                                 className = cls
                                 studentName = name
                                 classId = clsId
-                                isNewStudent = isNew
                                 
-                                if (isNew) {
-                                    currentScreen = "avatar"
-                                } else {
-                                    isLoadingAvatar = true
-                                    coroutineScope.launch {
-                                        selectedAvatar = getStudentAvatar(clsId, name)
-                                        isLoadingAvatar = false
+                                // Check if student has avatar
+                                isLoadingAvatar = true
+                                coroutineScope.launch {
+                                    val avatar = getStudentAvatar(clsId, name)
+                                    isLoadingAvatar = false
+                                    
+                                    if (avatar.isEmpty() || avatar == "null") {
+                                        // Student has no avatar - send to avatar selection
+                                        currentScreen = "avatar"
+                                    } else {
+                                        // Student has avatar - go to game
+                                        selectedAvatar = avatar
                                         currentScreen = "game"
                                     }
                                 }
@@ -96,7 +100,6 @@ class MainActivity : ComponentActivity() {
                                 className = ""
                                 studentName = ""
                                 classId = 0
-                                isNewStudent = false
                                 selectedAvatar = "avatargirl1"
                             }
                         )

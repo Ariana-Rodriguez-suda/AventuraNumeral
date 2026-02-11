@@ -26,7 +26,6 @@ import kotlinx.coroutines.withContext
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.layout.Column
 
 // ===== DATA =====
@@ -428,10 +427,10 @@ fun GameScreen(className: String, studentName: String, avatarSprite: String, onE
                 playerY < npc.y + npc.height
             ) {
                 // Push player back
-                if (playerX < npc.x) {
-                    playerX = npc.x - playerSize
+                playerX = if (playerX < npc.x) {
+                    npc.x - playerSize
                 } else {
-                    playerX = npc.x + npc.width
+                    npc.x + npc.width
                 }
             }
 
@@ -441,10 +440,10 @@ fun GameScreen(className: String, studentName: String, avatarSprite: String, onE
                 playerY + playerSize >= groundY
             ) {
                 // Push player back from hole2X
-                if (playerX < hole2X + hole2Width / 2) {
-                    playerX = hole2X - playerSize
+                playerX = if (playerX < hole2X + hole2Width / 2) {
+                    hole2X - playerSize
                 } else {
-                    playerX = hole2X + hole2Width
+                    hole2X + hole2Width
                 }
             }
 
@@ -509,13 +508,13 @@ fun GameScreen(className: String, studentName: String, avatarSprite: String, onE
             }
 
             // Endpoint
-            val playerRect = android.graphics.RectF(
+            val playerRect = RectF(
                 playerX,
                 playerY,
                 playerX + playerSize,
                 playerY + playerSize
             )
-            val endRect = android.graphics.RectF(
+            val endRect = RectF(
                 endX,
                 endY - endHeight,
                 endX + endWidth,
@@ -586,7 +585,7 @@ fun GameScreen(className: String, studentName: String, avatarSprite: String, onE
                         val x = event.getX(i)
                         val y = event.getY(i)
 
-                        if (y > h * 0.65f) {
+                        if (y > h * 0.75f) {  // Adjusted to match button position
                             if (x < w * 0.25f) left = true
                             if (x in (w * 0.25f)..(w * 0.5f)) right = true
                             if (x in (w * 0.55f)..(w * 0.7f)) push = true
@@ -671,11 +670,11 @@ fun GameScreen(className: String, studentName: String, avatarSprite: String, onE
                 Offset(playerX - cameraX,
                     playerY - spriteOffsetY))
 
-            // ✅ BUTTONS
-            drawCircle(Color(0xAA000000), 70f, Offset(w * 0.15f, h * 0.8f))
-            drawCircle(Color(0xAA000000), 70f, Offset(w * 0.35f, h * 0.8f))
-            drawCircle(Color(0xAA000000), 70f, Offset(w * 0.6f, h * 0.8f))
-            drawCircle(Color(0xAA000000), 70f, Offset(w * 0.85f, h * 0.8f))
+            // ✅ BUTTONS (control buttons at bottom)
+            drawCircle(Color(0xAA000000), 40f, Offset(w * 0.15f, h * 0.85f))
+            drawCircle(Color(0xAA000000), 40f, Offset(w * 0.35f, h * 0.85f))
+            drawCircle(Color(0xAA000000), 40f, Offset(w * 0.6f, h * 0.85f))
+            drawCircle(Color(0xAA000000), 40f, Offset(w * 0.85f, h * 0.85f))
 
             drawRect(
                 Color.Magenta,

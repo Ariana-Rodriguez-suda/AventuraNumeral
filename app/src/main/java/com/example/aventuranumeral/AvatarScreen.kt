@@ -19,24 +19,47 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
-suspend fun createStudentWithAvatar(
+suspend fun updateStudentAvatar(
     classId: Int,
     studentName: String,
     avatar: String
 ): Boolean {
     return withContext(Dispatchers.IO) {
         try {
-            val url = java.net.URL("https://aventuranumeralbackend.onrender.com/classes/$classId/students")
-            val conn = url.openConnection() as java.net.HttpURLConnection
-            conn.requestMethod = "POST"
-            conn.setRequestProperty("Content-Type", "application/json")
-            conn.doOutput = true
+            // First get student ID
+            val studentsUrl = java.net.URL("https://aventuranumeralbackend.onrender.com/classes/$classId/student-names")
+            val studentsConn = studentsUrl.openConnection() as java.net.HttpURLConnection
+            studentsConn.requestMethod = "GET"
 
-            val json = """{"student_name": "$studentName", "avatar": "$avatar"}"""
-            conn.outputStream.use { it.write(json.toByteArray()) }
+            val studentsResponse = studentsConn.inputStream.bufferedReader().readText()
+            studentsConn.disconnect()
 
-            val responseCode = conn.responseCode
-            conn.disconnect()
+            val json = JSONObject(studentsResponse)
+            val studentsArray = json.getJSONArray("students")
+            
+            var studentId: Int? = null
+            for (i in 0 until studentsArray.length()) {
+                val student = studentsArray.getJSONObject(i)
+                if (student.getString("student_name") == studentName) {
+                    studentId = student.getInt("id")
+                    break
+                }
+            }
+            
+            if (studentId == null) return@withContext false
+            
+            // Update avatar
+            val updateUrl = java.net.URL("https://aventuranumeralbackend.onrender.com/students/$studentId/avatar")
+            val updateConn = updateUrl.openConnection() as java.net.HttpURLConnection
+            updateConn.requestMethod = "PATCH"
+            updateConn.setRequestProperty("Content-Type", "application/json")
+            updateConn.doOutput = true
+
+            val updateJson = """{"avatar": "$avatar"}"""
+            updateConn.outputStream.use { it.write(updateJson.toByteArray()) }
+
+            val responseCode = updateConn.responseCode
+            updateConn.disconnect()
 
             responseCode == 200
         } catch (e: Exception) {
@@ -218,7 +241,7 @@ fun AvatarScreen(
                                 if (!isCreating) {
                                     isCreating = true
                                     coroutineScope.launch {
-                                        val success = createStudentWithAvatar(
+                                        val success = updateStudentAvatar(
                                             classId,
                                             studentName,
                                             currentAvatarName

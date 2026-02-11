@@ -70,7 +70,7 @@ suspend fun fetchStudents(classId: Int): List<StudentInfo> {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StartScreen(onStartGame: (String, String, Int, Boolean) -> Unit) {
+fun StartScreen(onStartGame: (String, String, Int) -> Unit) {
 
     var classes by remember { mutableStateOf<List<ClassInfo>>(emptyList()) }
     var students by remember { mutableStateOf<List<StudentInfo>>(emptyList()) }
@@ -80,9 +80,6 @@ fun StartScreen(onStartGame: (String, String, Int, Boolean) -> Unit) {
 
     var classExpanded by remember { mutableStateOf(false) }
     var studentExpanded by remember { mutableStateOf(false) }
-
-    var showCreateNew by remember { mutableStateOf(false) }
-    var newStudentName by remember { mutableStateOf("") }
 
     val scrollState = rememberScrollState()
 
@@ -147,7 +144,6 @@ fun StartScreen(onStartGame: (String, String, Int, Boolean) -> Unit) {
                                 onClick = {
                                     selectedClass = classInfo
                                     classExpanded = false
-                                    showCreateNew = false
                                 }
                             )
                         }
@@ -156,7 +152,7 @@ fun StartScreen(onStartGame: (String, String, Int, Boolean) -> Unit) {
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                if (selectedClass != null && !showCreateNew) {
+                if (selectedClass != null) {
                     ExposedDropdownMenuBox(
                         expanded = studentExpanded,
                         onExpandedChange = { studentExpanded = it }
@@ -191,79 +187,26 @@ fun StartScreen(onStartGame: (String, String, Int, Boolean) -> Unit) {
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(30.dp))
 
-                    Button(
-                        onClick = { showCreateNew = true },
-                        modifier = Modifier
-                            .width(300.dp)
-                            .height(60.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White,
-                            contentColor = Color(0xFFFF6B6B)
-                        )
-                    ) {
-                        Text("+ Crear Nuevo Jugador")
-                    }
-                }
-
-                if (showCreateNew) {
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    OutlinedTextField(
-                        value = newStudentName,
-                        onValueChange = { newStudentName = it },
-                        label = { Text("Tu nombre") },
-                        singleLine = true,
-                        modifier = Modifier.width(320.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(20.dp))
+                    val canStart = selectedClass != null && selectedStudent != null
 
                     Image(
-                        painter = painterResource(id = R.drawable.volver),
-                        contentDescription = "Volver",
+                        painter = painterResource(id = R.drawable.jugar),
+                        contentDescription = "Jugar",
                         modifier = Modifier
-                            .width(220.dp)
-                            .height(70.dp)
-                            .clickable {
-                                showCreateNew = false
-                                selectedStudent = null
-                                newStudentName = ""
-                            }
+                            .width(280.dp)
+                            .height(80.dp)
+                            .clickable(enabled = canStart) {
+                                val classInfo = selectedClass ?: return@clickable
+                                val studentInfo = selectedStudent ?: return@clickable
+                                onStartGame(classInfo.name, studentInfo.name, classInfo.id)
+                            },
+                        alpha = if (canStart) 1f else 0.5f
                     )
+
+                    Spacer(modifier = Modifier.height(60.dp))
                 }
-
-                Spacer(modifier = Modifier.height(30.dp))
-
-                val canStart = selectedClass != null &&
-                        (selectedStudent != null || (showCreateNew && newStudentName.isNotBlank()))
-
-                Image(
-                    painter = painterResource(id = R.drawable.jugar),
-                    contentDescription = "Jugar",
-                    modifier = Modifier
-                        .width(280.dp)
-                        .height(80.dp)
-                        .clickable(enabled = canStart) {
-                            val classInfo = selectedClass ?: return@clickable
-                            val className = classInfo.name
-                            val studentName = if (showCreateNew) {
-                                newStudentName.takeIf { it.isNotBlank() } ?: return@clickable
-                            } else {
-                                selectedStudent?.name ?: return@clickable
-                            }
-                            val isNew = showCreateNew
-                            onStartGame(className, studentName, classInfo.id, isNew)
-                        },
-                    alpha = if (canStart) 1f else 0.5f
-                )
-
-                Spacer(modifier = Modifier.height(60.dp))
             }
         }
     }
