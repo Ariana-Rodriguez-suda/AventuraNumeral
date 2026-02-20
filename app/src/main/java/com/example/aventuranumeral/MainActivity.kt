@@ -51,6 +51,16 @@ class MainActivity : ComponentActivity() {
                 var isLoadingAvatar by remember { mutableStateOf(false) }
                 val coroutineScope = rememberCoroutineScope()
 
+                var totalCoins by remember { mutableIntStateOf(0) }
+                var ownedAvatars by remember { mutableStateOf(setOf<String>()) }
+
+                // Saved finish screen data
+                var lastCoins by remember { mutableIntStateOf(0) }
+                var lastStars by remember { mutableIntStateOf(0) }
+                var lastTime by remember { mutableFloatStateOf(0f) }
+                var lastCheckpoint by remember { mutableStateOf(false) }
+                var lastCheckpointTime by remember { mutableStateOf<Float?>(null) }
+
                 when (currentScreen) {
                     "start" -> {
                         StartScreen(
@@ -71,6 +81,7 @@ class MainActivity : ComponentActivity() {
                                     } else {
                                         // Student has avatar - go to game
                                         selectedAvatar = avatar
+                                        ownedAvatars = setOf(avatar)
                                         currentScreen = "game"
                                     }
                                 }
@@ -83,6 +94,7 @@ class MainActivity : ComponentActivity() {
                             studentName = studentName,
                             onAvatarSelected = { avatar ->
                                 selectedAvatar = avatar
+                                ownedAvatars = setOf(avatar)
                                 currentScreen = "game"
                             },
                             onBack = {
@@ -101,6 +113,88 @@ class MainActivity : ComponentActivity() {
                                 studentName = ""
                                 classId = 0
                                 selectedAvatar = "avatargirl1"
+                            },
+                            onLevelComplete = { coins, stars, time, checkpoint, checkpointTime ->
+                                // Save level results
+                                lastCoins = coins
+                                lastStars = stars
+                                lastTime = time
+                                lastCheckpoint = checkpoint
+                                lastCheckpointTime = checkpointTime
+                                
+                                // Add earned coins to total
+                                totalCoins += coins
+                                
+                                // Navigate to finish screen
+                                currentScreen = "finish"
+                                
+                                // Send level data to server
+                                coroutineScope.launch {
+                                    sendLevelData(
+                                        className = className,
+                                        studentName = studentName,
+                                        levelTime = time,
+                                        checkpointTime = checkpointTime,
+                                        reachedCheckpoint = checkpoint,
+                                        coinsCollected = coins,
+                                        starsEarned = stars
+                                    )
+                                }
+                            }
+                        )
+                    }
+                    "finish" -> {
+                        FinishScreen(
+                            studentName = studentName,
+                            levelTime = lastTime,
+                            coinsCollected = lastCoins,
+                            starsEarned = lastStars,
+                            checkpointReached = lastCheckpoint,
+                            checkpointTime = lastCheckpointTime,
+                            onBackToStart = {
+                                currentScreen = "start"
+                                className = ""
+                                studentName = ""
+                                classId = 0
+                                selectedAvatar = "avatargirl1"
+                            },
+                            onGoToShop = {
+                                currentScreen = "shop"
+                            },
+                            onGoToAvatarChange = {
+                                currentScreen = "avatarchange"
+                            }
+                        )
+                    }
+                    "shop" -> {
+                        ShopScreen(
+                            totalCoins = totalCoins,
+                            onBackPressed = {
+                                currentScreen = "finish"
+                            },
+                            onBuyLifePotion = {
+                                if (totalCoins >= 15) totalCoins -= 15
+                            }
+                        )
+                    }
+                    "avatarchange" -> {
+                        AvatarChangeScreen(
+                            totalCoins = totalCoins,
+                            currentAvatar = selectedAvatar,
+                            ownedAvatars = ownedAvatars,
+                            onBackPressed = {
+                                currentScreen = "finish"
+                            },
+                            onBuyAvatar = { avatar, price ->
+                                if (totalCoins >= price) {
+                                    totalCoins -= price
+                                    // Buying auto-equips: remove old avatar from owned, add new one
+                                    ownedAvatars = setOf(avatar)
+                                    selectedAvatar = avatar
+                                }
+                            },
+                            onEquipAvatar = { avatar ->
+                                selectedAvatar = avatar
                             }
                         )
                     }

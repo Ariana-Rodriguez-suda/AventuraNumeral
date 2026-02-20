@@ -1,8 +1,8 @@
 package com.example.aventuranumeral
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,7 +23,9 @@ fun FinishScreen(
     starsEarned: Int,
     checkpointReached: Boolean,
     checkpointTime: Float?,
-    onBackToStart: () -> Unit
+    onBackToStart: () -> Unit,
+    onGoToShop: () -> Unit,
+    onGoToAvatarChange: () -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         // Background
@@ -34,186 +36,90 @@ fun FinishScreen(
             contentScale = ContentScale.Crop
         )
 
-        // Content
+        // Content - no scroll, fits on one page
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(40.dp),
+                .padding(horizontal = 24.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(30.dp)
+            verticalArrangement = Arrangement.SpaceEvenly
         ) {
-            Spacer(modifier = Modifier.height(40.dp))
-
-            // Title
+            // Puntaje title
             Text(
-                text = "🎉 ¡Nivel Completado! 🎉",
+                text = "Puntaje",
                 fontSize = 36.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White,
+                color = Color(0xFFFFD700),
                 textAlign = TextAlign.Center
             )
 
-            // Stars display
+            // Stars row
             Row(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 repeat(3) { index ->
-                    Text(
-                        text = if (index < starsEarned) "⭐" else "☆",
-                        fontSize = 60.sp,
-                        color = if (index < starsEarned) Color(0xFFFFD700) else Color.Gray
+                    Image(
+                        painter = painterResource(R.drawable.star),
+                        contentDescription = "Estrella ${index + 1}",
+                        modifier = Modifier.size(80.dp),
+                        alpha = if (index < starsEarned) 1f else 0.3f
                     )
                 }
             }
 
-            // Player name
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF2D5A3D))
+            // Coins earned with icon
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Column(
+                Image(
+                    painter = painterResource(R.drawable.coin),
+                    contentDescription = "Monedas",
+                    modifier = Modifier.size(40.dp)
+                )
+                Text(
+                    text = "$coinsCollected",
+                    fontSize = 32.sp,
+                    color = Color(0xFFFFD700),
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Shop & Avatar buttons row (using drawable images, same size)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.tienda),
+                    contentDescription = "Tienda",
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = "Jugador",
-                        fontSize = 20.sp,
-                        color = Color(0xFFD4A74F),
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = studentName,
-                        fontSize = 28.sp,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
+                        .height(55.dp)
+                        .clickable { onGoToShop() },
+                    contentScale = ContentScale.FillHeight
+                )
 
-            // Stats
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF2D5A3D))
-            ) {
-                Column(
+                Image(
+                    painter = painterResource(R.drawable.avatar),
+                    contentDescription = "Avatar",
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    // Time
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "⏱️ Tiempo Total:",
-                            fontSize = 22.sp,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "${"%.2f".format(levelTime)} s",
-                            fontSize = 22.sp,
-                            color = Color(0xFFD4A74F),
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    // Checkpoint
-                    if (checkpointReached && checkpointTime != null) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "🚩 Checkpoint:",
-                                fontSize = 22.sp,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "${"%.2f".format(checkpointTime)} s",
-                                fontSize = 22.sp,
-                                color = Color(0xFFD4A74F),
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-
-                    HorizontalDivider(color = Color(0xFFD4A74F), thickness = 2.dp)
-
-                    // Coins
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Image(
-                                painter = painterResource(R.drawable.coin),
-                                contentDescription = "Monedas",
-                                modifier = Modifier.size(40.dp)
-                            )
-                            Text(
-                                text = "Monedas:",
-                                fontSize = 24.sp,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Text(
-                            text = "$coinsCollected",
-                            fontSize = 32.sp,
-                            color = Color(0xFFFFD700),
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
+                        .height(55.dp)
+                        .clickable { onGoToAvatarChange() },
+                    contentScale = ContentScale.FillHeight
+                )
             }
 
-            Spacer(modifier = Modifier.weight(1f))
-
-            // Back button
-            Card(
+            // CONTINUAR button - using drawable image, same height as other buttons
+            Image(
+                painter = painterResource(R.drawable.continuar),
+                contentDescription = "Continuar",
                 modifier = Modifier
-                    .width(300.dp)
-                    .height(80.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF5A7A4D)),
-                onClick = onBackToStart
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Volver al Inicio",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
+                    .height(55.dp)
+                    .clickable { onBackToStart() },
+                contentScale = ContentScale.FillHeight
+            )
         }
     }
 }
