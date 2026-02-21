@@ -1,9 +1,11 @@
 package com.example.aventuranumeral
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -125,13 +127,17 @@ fun AvatarChangeScreen(
 
             Spacer(modifier = Modifier.height(30.dp))
 
-            // Grid de avatares usando LazyColumn + Rows (compatible con API 29)
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(20.dp),
-                contentPadding = PaddingValues(10.dp)
-            ) {
-                val avatarRows = avatars.chunked(2)
-                items(avatarRows) { rowAvatars ->
+            // Grid de avatares con scrollbar visible
+            val listState = rememberLazyListState()
+            val avatarRows = avatars.chunked(2)
+            
+            Box(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    state = listState,
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                    contentPadding = PaddingValues(start = 10.dp, end = 20.dp, top = 10.dp, bottom = 10.dp)
+                ) {
+                    items(avatarRows) { rowAvatars ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(20.dp)
@@ -225,6 +231,50 @@ fun AvatarChangeScreen(
                         if (rowAvatars.size < 2) {
                             Spacer(modifier = Modifier.weight(1f))
                         }
+                    }
+                }
+            }
+
+                // Scrollbar indicator en la derecha
+                val totalItems = avatarRows.size
+                val scrollbarState by remember {
+                    derivedStateOf {
+                        val visibleInfo = listState.layoutInfo
+                        val visibleCount = visibleInfo.visibleItemsInfo.size
+                        val firstIndex = listState.firstVisibleItemIndex
+                        Triple(visibleCount, firstIndex, totalItems)
+                    }
+                }
+                val (visibleCount, firstIndex, total) = scrollbarState
+                if (total > 0 && visibleCount < total) {
+                    val thumbFraction = visibleCount.toFloat() / total
+                    val scrollFraction = firstIndex.toFloat() / (total - visibleCount)
+                    
+                    BoxWithConstraints(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .fillMaxHeight()
+                            .width(8.dp)
+                            .padding(vertical = 8.dp)
+                    ) {
+                        val trackHeight = maxHeight
+                        val thumbHeight = trackHeight * thumbFraction.coerceIn(0.3f, 1f)
+                        val thumbOffset = (trackHeight - thumbHeight) * scrollFraction
+                        
+                        // Track
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                        )
+                        // Thumb
+                        Box(
+                            modifier = Modifier
+                                .offset(y = thumbOffset)
+                                .width(8.dp)
+                                .height(thumbHeight)
+                                .background(Color.White.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
+                        )
                     }
                 }
             }

@@ -116,55 +116,25 @@ fun StartScreen(onStartGame: (String, String, Int) -> Unit) {
                     .padding(top = 20.dp, bottom = 60.dp)
             ) {
 
-                ExposedDropdownMenuBox(
-                    expanded = classExpanded,
-                    onExpandedChange = { classExpanded = it }
+                // Row con clase a la izquierda y nombre a la derecha
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = if (selectedClass != null) Arrangement.SpaceEvenly else Arrangement.Center,
+                    verticalAlignment = Alignment.Top
                 ) {
-                    OutlinedTextField(
-                        value = selectedClass?.name ?: "Selecciona tu clase",
-                        onValueChange = {},
-                        readOnly = true,
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = classExpanded) },
-                        modifier = Modifier
-                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                            .width(320.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White
-                        )
-                    )
-
-                    ExposedDropdownMenu(
-                        expanded = classExpanded,
-                        onDismissRequest = { classExpanded = false }
-                    ) {
-                        classes.forEach { classInfo ->
-                            DropdownMenuItem(
-                                text = { Text(classInfo.name) },
-                                onClick = {
-                                    selectedClass = classInfo
-                                    classExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                if (selectedClass != null) {
+                    // Dropdown de clase
                     ExposedDropdownMenuBox(
-                        expanded = studentExpanded,
-                        onExpandedChange = { studentExpanded = it }
+                        expanded = classExpanded,
+                        onExpandedChange = { classExpanded = it }
                     ) {
                         OutlinedTextField(
-                            value = selectedStudent?.name ?: "Selecciona tu nombre",
+                            value = selectedClass?.name ?: "Selecciona tu clase",
                             onValueChange = {},
                             readOnly = true,
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = studentExpanded) },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = classExpanded) },
                             modifier = Modifier
                                 .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                                .width(320.dp),
+                                .width(280.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedContainerColor = Color.White,
                                 unfocusedContainerColor = Color.White
@@ -172,21 +142,60 @@ fun StartScreen(onStartGame: (String, String, Int) -> Unit) {
                         )
 
                         ExposedDropdownMenu(
-                            expanded = studentExpanded,
-                            onDismissRequest = { studentExpanded = false }
+                            expanded = classExpanded,
+                            onDismissRequest = { classExpanded = false }
                         ) {
-                            students.forEach { student ->
+                            classes.forEach { classInfo ->
                                 DropdownMenuItem(
-                                    text = { Text(student.name) },
+                                    text = { Text(classInfo.name) },
                                     onClick = {
-                                        selectedStudent = student
-                                        studentExpanded = false
+                                        selectedClass = classInfo
+                                        classExpanded = false
                                     }
                                 )
                             }
                         }
                     }
 
+                    // Dropdown de nombre - aparece a la derecha cuando se selecciona clase
+                    if (selectedClass != null) {
+                        ExposedDropdownMenuBox(
+                            expanded = studentExpanded,
+                            onExpandedChange = { studentExpanded = it }
+                        ) {
+                            OutlinedTextField(
+                                value = selectedStudent?.name ?: "Selecciona tu nombre",
+                                onValueChange = {},
+                                readOnly = true,
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = studentExpanded) },
+                                modifier = Modifier
+                                    .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                                    .width(280.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = Color.White,
+                                    unfocusedContainerColor = Color.White
+                                )
+                            )
+
+                            ExposedDropdownMenu(
+                                expanded = studentExpanded,
+                                onDismissRequest = { studentExpanded = false }
+                            ) {
+                                students.forEach { student ->
+                                    DropdownMenuItem(
+                                        text = { Text(student.name) },
+                                        onClick = {
+                                            selectedStudent = student
+                                            studentExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (selectedClass != null) {
                     Spacer(modifier = Modifier.height(30.dp))
 
                     val canStart = selectedClass != null && selectedStudent != null

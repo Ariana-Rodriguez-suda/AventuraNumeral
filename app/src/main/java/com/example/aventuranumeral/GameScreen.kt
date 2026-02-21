@@ -27,17 +27,15 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
+import androidx.compose.ui.viewinterop.AndroidView
+import android.widget.TextView
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.view.Gravity
+import android.graphics.Typeface
 
 // ===== DATA =====
 
@@ -188,9 +186,6 @@ fun GameScreen(className: String, studentName: String, avatarSprite: String, onE
     val twoVidaImg = ImageBitmap.imageResource(R.drawable.twovida)
     val zeroVidaImg = ImageBitmap.imageResource(R.drawable.zerovida)
     val coinScoreImg = ImageBitmap.imageResource(R.drawable.coinscore)
-    val dialogoImg = ImageBitmap.imageResource(R.drawable.dialogo)
-    val textboxImg = ImageBitmap.imageResource(R.drawable.textbox)
-    
     var flagOn by remember { mutableStateOf(false) }
 
     // ===== WORLD =====
@@ -1111,75 +1106,41 @@ fun GameScreen(className: String, studentName: String, avatarSprite: String, onE
                 dstSize = IntSize(200, 70)
             )
 
-            // Draw coins collected at top-right (504x250 original, scaled down)
-            val coinScoreX = w - 280f
-            val coinScoreY = 40f
+            // coinScore en Canvas
             drawImage(
                 coinScoreImg,
-                dstOffset = IntOffset(coinScoreX.toInt(), coinScoreY.toInt()),
+                dstOffset = IntOffset((w - 280f).toInt(), 40),
                 dstSize = IntSize(252, 125)
             )
 
-            // Textos del HUD se dibujan como Compose overlays (después del Canvas)
-            
-            // Diálogo del NPC - solo la imagen, el texto se dibuja como Compose overlay
-            if (showNpcDialog && npcDialogMessage.isNotEmpty()) {
-                val dialogWidth = 520f
-                val dialogHeight = 320f
-                val npcHeightForDialog = if (npcState == "working") 240f else 220f
-                val npcDrawYForDialog = floorTopY - npcHeightForDialog
-                val rawDialogX = npc.x - cameraX - 180f
-                val dialogX = rawDialogX.coerceIn(20f, w - dialogWidth - 20f)
-                val dialogY = (npcDrawYForDialog - dialogHeight - 20f).coerceAtLeast(40f)
-                
-                drawImage(
-                    dialogoImg,
-                    dstOffset = IntOffset(dialogX.toInt(), dialogY.toInt()),
-                    dstSize = IntSize(dialogWidth.toInt(), dialogHeight.toInt())
-                )
-            }
-            
-            // Tutorial - solo la imagen, el texto se dibuja como Compose overlay
-            if (showTutorial) {
-                val tutorialWidth = minOf(820f, w - 80f)
-                val tutorialHeight = minOf(520f, h - 120f)
-                val tutorialX = (w - tutorialWidth) / 2
-                val tutorialY = (h - tutorialHeight) / 2
-                
-                drawImage(
-                    textboxImg,
-                    dstOffset = IntOffset(tutorialX.toInt(), tutorialY.toInt()),
-                    dstSize = IntSize(tutorialWidth.toInt(), tutorialHeight.toInt())
-                )
-            }
+            // dialogo y tutorial se renderizan como AndroidView completo (FrameLayout + ImageView + TextView)
         }
         
-        // ===== COMPOSE TEXT OVERLAYS =====
-        
-        // Timer oculto (se usa internamente para estrellas pero no se muestra)
+        // ===== FULL NATIVE AndroidView OVERLAYS (FrameLayout + ImageView + TextView) =====
+        // Todo es View nativo de Android - ninguna capa de Compose involucrada
         
         val density = LocalDensity.current
+        val dpScale = density.density
         
-        // Contador de monedas - DENTRO de la imagen coinScore
-        // coinScore image is at pixel (w-280, 40) with size (252, 125)
+        // Contador de monedas - AndroidView encima de coinScore dibujado en Canvas
         with(density) {
-            Box(
+            AndroidView(
+                factory = { ctx ->
+                    TextView(ctx).apply {
+                        setTextColor(0xFF4E342E.toInt())
+                        textSize = 18f
+                        typeface = Typeface.DEFAULT_BOLD
+                    }
+                },
+                update = { tv ->
+                    tv.text = "x$coinsCollected"
+                },
                 modifier = Modifier
-                    .offset(x = (w - 280f + 50f).toDp(), y = 40f.toDp())
-                    .size(width = 200f.toDp(), height = 125f.toDp()),
-                contentAlignment = Alignment.BottomCenter
-            ) {
-                Text(
-                    text = "x$coinsCollected",
-                    color = Color(0xFF333333),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-            }
+                    .offset(x = (w - 130f).toDp(), y = 75f.toDp())
+            )
         }
         
-        // Tutorial overlay - texto centrado DENTRO de la imagen textbox
+        // Tutorial - FrameLayout con ImageView(textbox) + TextView
         if (showTutorial) {
             val tutorialMessages = listOf(
                 "¡Hola! Bienvenido a Aventura Numeral. Aquí aprenderás fracciones jugando.",
@@ -1188,47 +1149,57 @@ fun GameScreen(className: String, studentName: String, avatarSprite: String, onE
                 "El agujero necesita el bloque de 2/5. ¡Elige bien! Si te equivocas, tendrás que volver a intentar.",
                 "¡Empuja los bloques desde las plataformas hacia el agujero! ¡Buena suerte!"
             )
-            // Use exact same coordinates as the Canvas textbox image
             val tutorialWidth = minOf(820f, w - 80f)
-            val tutorialHeight = minOf(520f, h - 120f)
+            val tutorialHeight = minOf(580f, h - 80f)
             val tutorialX = (w - tutorialWidth) / 2
             val tutorialY = (h - tutorialHeight) / 2
             
             with(density) {
-                Box(
+                AndroidView(
+                    factory = { ctx ->
+                        FrameLayout(ctx).apply {
+                            addView(ImageView(ctx).apply {
+                                setImageResource(R.drawable.textbox)
+                                scaleType = ImageView.ScaleType.FIT_XY
+                                layoutParams = FrameLayout.LayoutParams(
+                                    FrameLayout.LayoutParams.MATCH_PARENT,
+                                    FrameLayout.LayoutParams.MATCH_PARENT
+                                )
+                            })
+                            addView(TextView(ctx).apply {
+                                setTextColor(0xFF4E342E.toInt())
+                                textSize = 14f
+                                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                                setGravity(Gravity.CENTER)
+                                setLineSpacing(0f, 1.3f)
+                                setPadding(
+                                    (35 * dpScale).toInt(), (40 * dpScale).toInt(),
+                                    (35 * dpScale).toInt(), (40 * dpScale).toInt()
+                                )
+                                tag = "msg"
+                                layoutParams = FrameLayout.LayoutParams(
+                                    FrameLayout.LayoutParams.MATCH_PARENT,
+                                    FrameLayout.LayoutParams.MATCH_PARENT
+                                )
+                            })
+                            setOnClickListener {
+                                if (tutorialStep < 4) tutorialStep++ else { showTutorial = false; timerRunning = true }
+                            }
+                        }
+                    },
+                    update = { frame ->
+                        val msgView = frame.findViewWithTag<TextView>("msg")
+                        val suffix = if (tutorialStep < 4) "\n\n(Toca para continuar)" else "\n\n¡Toca para empezar!"
+                        msgView.text = tutorialMessages[tutorialStep] + suffix
+                    },
                     modifier = Modifier
                         .offset(x = tutorialX.toDp(), y = tutorialY.toDp())
                         .size(width = tutorialWidth.toDp(), height = tutorialHeight.toDp())
-                        .clickable {
-                            if (tutorialStep < 4) tutorialStep++ else { showTutorial = false; timerRunning = true }
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(horizontal = 50.dp, vertical = 40.dp)
-                    ) {
-                        Text(
-                            text = tutorialMessages[tutorialStep],
-                            color = Color.Black,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 24.sp
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = if (tutorialStep < 4) "➤ Siguiente" else "\uD83D\uDE80 ¡Empezar!",
-                            color = Color(0xFFFF6B35),
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
+                )
             }
         }
         
-        // Diálogo del NPC overlay - texto centrado DENTRO de la imagen dialogo
+        // Diálogo del NPC - FrameLayout completo con ImageView(dialogo) + TextView
         if (showNpcDialog && npcDialogMessage.isNotEmpty()) {
             val dialogWidth = 520f
             val dialogHeight = 320f
@@ -1239,27 +1210,49 @@ fun GameScreen(className: String, studentName: String, avatarSprite: String, onE
             val dialogY = (npcDrawYForDialog - dialogHeight - 20f).coerceAtLeast(40f)
             
             with(density) {
+                // Capa transparente para capturar toques y cerrar diálogo
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .clickable { showNpcDialog = false }
                 ) {
-                    Box(
+                    AndroidView(
+                        factory = { ctx ->
+                            FrameLayout(ctx).apply {
+                                // ImageView con dialogo de fondo
+                                addView(ImageView(ctx).apply {
+                                    setImageResource(R.drawable.dialogo)
+                                    scaleType = ImageView.ScaleType.FIT_XY
+                                    layoutParams = FrameLayout.LayoutParams(
+                                        FrameLayout.LayoutParams.MATCH_PARENT,
+                                        FrameLayout.LayoutParams.MATCH_PARENT
+                                    )
+                                })
+                                addView(TextView(ctx).apply {
+                                    setTextColor(0xFF4E342E.toInt())
+                                    textSize = 13f
+                                    typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                                    setGravity(Gravity.CENTER)
+                                    setLineSpacing(0f, 1.2f)
+                                    setPadding(
+                                        (30 * dpScale).toInt(), (15 * dpScale).toInt(),
+                                        (30 * dpScale).toInt(), (35 * dpScale).toInt()
+                                    )
+                                    tag = "dialogText"
+                                    layoutParams = FrameLayout.LayoutParams(
+                                        FrameLayout.LayoutParams.MATCH_PARENT,
+                                        FrameLayout.LayoutParams.MATCH_PARENT
+                                    )
+                                })
+                            }
+                        },
+                        update = { frame ->
+                            frame.findViewWithTag<TextView>("dialogText").text = npcDialogMessage
+                        },
                         modifier = Modifier
                             .offset(x = dialogX.toDp(), y = dialogY.toDp())
                             .size(width = dialogWidth.toDp(), height = dialogHeight.toDp())
-                            .padding(start = 40.dp, end = 40.dp, top = 30.dp, bottom = 50.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = npcDialogMessage,
-                            color = Color.Black,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 20.sp
-                        )
-                    }
+                    )
                 }
             }
         } else if (showNpcDialog) {
